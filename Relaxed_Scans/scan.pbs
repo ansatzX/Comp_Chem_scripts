@@ -1,0 +1,116 @@
+#!/bin/bash
+#PBS -l nodes=1:ppn=28
+#PBS -l walltime=8760:00:00
+#PBS -N SCAN-hand
+#PBS -oe
+
+# set  your g16
+module add g16/C01     
+#
+#
+# set tmp dir in s1  and set it as WORKDIR
+#cd  \$SUBJOBDIR
+# mkdir new  tmp dir and set GAUSS_SCRATCH dir 
+#  
+
+# cp  *.gjf $WORKDIR
+# cp INPUT/*.gjf  $WORKDIR
+# cp OK.chk $WORKDIR 2> /dev/null
+# copy OK.chk for read it as continue calc
+
+WORKDIR=
+
+
+cd $WORKDIR
+mkdir DONE 2> /dev/null
+mkdir INPUT 2> /dev/null
+mkdir WRONG 2> /dev/null
+dos2unix * 2> /dev/null
+
+mv *.gjf INPUT
+
+runprog=$(which g16)
+echo "$runprog"  >> Report.log
+# run jobs
+cd INPUT || echo "can't go to input dir" >> Report.log && exit
+# no need to fix，remove it
+#sed -i 's/%oldchk=OK.chk/!%oldchk=OK.chk/g' $(ls *.gjf|sort|head -n 1 )
+for inf in $(ls ./*.gjf|sort) ;do
+    cd $WORKDIR  || echo "can't go to work dir" >> Report.log && exit
+    # get input
+    mv  INPUT/${inf}  .
+    # run it
+    echo " calc ${inf}, run it"  >> Report.log
+    ${runprog} <  ${inf}  > ${inf/.gjf/}.log
+    # judge it 
+    iscov=$(grep Normal ${inf/.gjf/}.log)
+    echo "done calc, judging"  >> Report.log
+    if [[ -n ${iscov} ]];then
+        echo  "${inf} OK"  >> Report.log
+        mv ${inf/.gjf/}.log ./DONE
+        mv ${inf} DONE
+        cp INPUT.chk  ./DONE/${inf/.gjf/}.chk
+        mv INPUT.chk  OK.chk
+
+    else
+        echo "${inf} using other way"  >> Report.log
+        # backup bad chk for user to check
+        mv INPUT.chk ./WRONG/${inf/.gjf/}.chk
+        # guess why  it was wrong,try to solve
+
+        isscf=$(grep "Convergence failure -- run terminated" ${inf/.gjf/}.log)
+        isopt=$(grep "Optimization stopped" ${inf/.gjf/}.log)
+        echo " isscf ${isscf}, isopt ${isopt}" >> Report.log
+        if [[  -n ${isscf}   ]];then
+            echo "scf problem, using XQC " >>Report.log
+            sed -i 's/#p/#p scf=xqc/g' ${inf}
+        elif [[ -n ${isopt} ]];then
+            echo "opt problem, using gdiis" >> Report.log
+            sed -i 's/opt=modredundant/opt=(modredundant,gdiis)/g' ${inf}
+        else
+            echo "sorry,check your files " >> Report.log
+            exit
+        fi
+
+        mv ${inf/.gjf/}.log ./WRONG
+        ${runprog} ${inf}  > ${inf/.gjf/}.log
+
+        # solution works? judge it       
+        iscov=$(grep Normal "${inf/.gjf/}".log)
+        if [[ -n ${iscov} ]];then
+            # OK ,just backup OK file ,and prepare .CHk,for next point
+            echo  " ${inf} OK now, althouth we use solution, run last frame stable=opt, if XQC"  >> Report.log
+            mv ${inf/.gjf/}.log ./DONE
+            mv ${inf} ./DONE
+            cp INPUT.chk  ./DONE/${inf/.gjf/}.chk
+            mv INPUT.chk  OK.chk
+
+        else
+            # Wrong，chekck your INPUT
+            echo " ${inf} dead, please reset your scan variable or input keywords, you are rebirth" >> Report.log
+            mv  ${inf} WRONG
+            mv  ${inf/.gjf/}.log WRONG
+            mv INPUT.chk   ./WRONG/${inf/.gjf/}.chk
+
+            exit
+        fi
+
+    fi
+
+done
+
+#如果需要转到s1算 ，可以考虑激活下面的脚本
+#cd \$SUBJOBDIR
+# mkdir DONE 2> /dev/null
+# mkdir INPUT 2> /dev/null
+# mkdir WRONG 2> /dev/null
+# mv $WORKDIR/DONE/*   .
+# mv $WORKDIR/INPUT/*   .
+# mv ${WORKDIR}/WRONG/*  .
+# mv ${WORKDIR}/Report.log  .
+# mv ${WORKDIR}/OK.chk  .
+
+echo "PBS JOB complete!" >> Report.log
+
+exit
+
