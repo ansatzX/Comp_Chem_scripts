@@ -1,0 +1,46 @@
+#!/bin/bash
+FILE=$1
+FILENAME=${FILE%.*}
+QSUB_SCRIPT=$PWD/$FILENAME.script
+WORK_DIR=${PWD}
+# job descritpion in amber9: filename before last period
+JOB_NAME=${FILENAME}
+# job name=dir tree + datetime + job description
+#set QSUB_SCRIPT = ${JOB_NAME}.sh
+outfile=${JOB_NAME}.info
+errfile=${JOB_NAME}.err
+
+# BUILD THE QSUB_SCRIPT FILE
+cat << EOF > ${QSUB_SCRIPT}
+#!/bin/bash
+#PBS -l nodes=1:ppn=28
+#PBS -l walltime=8760:00:00
+#PBS -N $JOB_NAME
+#PBS -j oe
+
+#Please give the name of the INPUT_FILE, such as test(.chm)
+INPUT_FILE=$JOB_NAME
+
+
+source  /export/home/wjzhang/gcx/bin/scripts/evnwchem.sh
+cd ${PWD}
+mkdir ${FILENAME}
+cd  ${FILENAME}
+cp ../${FILE} .
+mkdir tmp
+echo " This job is assigned to \`hostname\`" > nodeinfo.log
+
+echo "Job started from \${PBS_O_HOST}, running on `hostname`" >> $outfile 
+echo "Job execution start: `date`" >> $outfile
+echo "PBS Job ID is: \${PBS_JOBID}" >> $outfile
+cat \$PBS_NODEFILE >> $outfile
+
+mpirun -np 28  nwchem $FILE   > ${FILENAME}.log
+
+exit
+EOF
+
+#
+# Now submit it to the PBS queue batch
+#
+qsub  -m n  ${QSUB_SCRIPT}

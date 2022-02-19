@@ -1,0 +1,32 @@
+#!/bin/bash
+#PBS -l nodes=1:ppn=28
+#PBS -l walltime=8760:00:00
+#PBS -N sobmecp
+#PBS -oe
+
+#Please give the name of the INPUT_FILE, such as test(.chm)
+
+source /export/home/wjzhang/.bashrc
+#### g16 ####
+export g16root=/share/apps/g16-c01
+. $g16root/g16/bsd/g16.profile
+export GAUSS_SCRDIR=/s1/$USER/scr
+export RSH_COMMAND="/usr/bin/ssh -x"
+
+ulimit -s unlimited
+conda activate base
+
+cd /export/home/wjzhang/gcx/data/zbd/mecp/sobMECP
+rm icome
+touch icome
+#which g16 > icome
+
+chmod +x  *
+ ./prepare.sh  >> watch.log
+bash ./runfirst.sh >> watch.log
+
+chmod +x 
+ ./runMECP.sh >> watch.log
+
+exit
+

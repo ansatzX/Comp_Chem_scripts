@@ -1,0 +1,79 @@
+#!/bin/csh
+
+set WORK_DIR = ${PWD}
+# job descritpion in amber9: filename before last period
+set JOB_NAME=$1:r
+set charge=$2
+# job name=dir tree + datetime + job description
+set QSUB_SCRIPT = ${JOB_NAME}.sh
+set outfile = ${JOB_NAME}.info
+set errfile = ${JOB_NAME}.err
+
+# BUILD THE QSUB_SCRIPT FILE
+cat << EOF > ${WORK_DIR}/${QSUB_SCRIPT}
+#!/bin/bash
+#PBS -l nodes=1:ppn=28
+#PBS -l walltime=8760:00:00
+#PBS -N $JOB_NAME
+#PBS -oe
+
+#Please give the name of the INPUT_FILE, such as test(.chm)
+INPUT_FILE=$JOB_NAME
+
+#### g16 ####
+export g16root=/share/apps/g16-c01
+. \$g16root/g16/bsd/g16.profile
+export GAUSS_SCRDIR=/s1/\$USER/scr
+export RSH_COMMAND="/usr/bin/ssh -x"
+
+ulimit -s unlimited
+###orca###
+export PATH=/export/home/wjzhang/gcx/bin/molclus_1.9.9.4_Linux:/export/home/wjzhang/gcx/bin/openmpi-3.1.4/bin:/export/home/wjzhang/gcx/bin/orca_4_2_1_linux_x86-64_shared_openmpi314:\$PATH
+export LD_LIBRARY_PATH=/export/home/wjzhang/gcx/bin/openmpi-3.1.4/lib:/export/home/wjzhang/gcx/bin/orca_4_2_1_linux_x86-64_shared_openmpi314:\$LD_LIBRARY_PATH
+
+source  /export/home/wjzhang/intel/oneapi/setvars.sh
+
+####crest&xtb###
+PATH=/export/home/wjzhang/gcx/bin:\$PATH
+XTBPATH=/export/home/wjzhang/gcx/bin/xtb-6.4.1/share/xtb
+export OMP_NUM_THREADS=28
+export MKL_NUM_THREADS=28
+export OMP_STACKSIZE=1000m
+ulimit -s unlimited
+PATH=/export/home/wjzhang/gcx/bin/xtb-6.4.1/bin:\$PATH
+
+
+#### dir ####
+if [ ! -d /s1/\$USER ]; then
+  mkdir -p /s1/\$USER
+fi
+if [ ! -d /s1/\$USER/scr ]; then
+  mkdir -p /s1/$USER/scr
+fi
+tmpdir=\$(mktemp -d /s1/\$USER/${JOB_NAME}_XXXXXX)
+cd \$tmpdir
+echo tmpdir=\$tmpdir
+cp \$PBS_O_WORKDIR/${JOB_NAME}.xyz .
+
+echo "Job started from \${PBS_O_HOST}, running on `hostname`" >> $outfile 
+echo "Job execution start: `date`" >> $outfile
+echo "PBS Job ID is: \${PBS_JOBID}" >> $outfile
+cat \$PBS_NODEFILE >> $outfile
+cp \$tmpdir/$outfile \$PBS_O_WORKDIR/
+
+/export/home/wjzhang/gcx/bin/crest  $JOB_NAME.xyz -gfn 2 -chrg $2   --noreftopo -T 28  > $JOB_NAME.log
+
+
+cp $JOB_NAME.log \$PBS_O_WORKDIR/
+cp crest_best.xyz  \$PBS_O_WORKDIR/$JOB_NAME-crest.xyz
+
+rm -rf \$tmpdir
+EOF
+
+#
+# Now submit it to the PBS queue batch
+#
+qsub  ${WORK_DIR}/${QSUB_SCRIPT}
+
+rm ${WORK_DIR}/${QSUB_SCRIPT}
+
