@@ -1,0 +1,27 @@
+#!/bin/bash
+
+# add this to your .bashrc and configure some env-scripts in a folder
+# i will place those scripts in '~/soft/scripts'
+function softload {                  
+  if [[ $1 == 'orca' ]];then         
+      SOFTLOADSH='envorca5.sh'       
+  elif [[ $1 == 'g16' ]];then        
+      SOFTLOADSH='envg16.sh'         
+  elif [[ $1 == 'conda' ]];then      
+      SOFTLOADSH='envminiconda3.sh'  
+  elif [[ $1 == 'xtb' ]];then        
+      SOFTLOADSH='envxtb641.sh'      
+  elif [[ $1 == 'openmpi411' ]];then 
+      SOFTLOADSH='envopenmpi411.sh'  
+  elif [[ $1 == 'vmd' ]];then        
+      SOFTLOADSH='envvmd194a55.sh'   
+  elif [[ $1 == 'pymol' ]];then      
+      SOFTLOADSH='envpymol.sh'       
+  elif [[ $1 == 'xtb' ]];then        
+      SOFTLOADSH='envxtb641.sh'      
+  else                               
+      echo "wrong"                   
+  fi                                 
+source ~/soft/scripts/${SOFTLOADSH}  
+}                                    
+
