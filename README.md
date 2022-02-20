@@ -1,4 +1,4 @@
-# Fortran语言实战
+# 计算化学用脚本合集
 
 [![MIT](https://img.shields.io/github/license/fortran-fans/Fortran-in-Action?color=pink)](LICENSE)
 
