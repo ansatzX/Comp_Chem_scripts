@@ -1,0 +1,15 @@
+#!/bin/bash
+# written by ansatz hermit100032@163.com
+
+# new wget 
+# set ssh config 
+# you need a VPS and VPS create a user to do downlaod jobs
+# place this script in a floder and chmod +x wget 
+# add PATH=<path-of-this-folder>:$PATH to your .bashrc
+
+
+ssh VPS  "rm -rf * >/dev/null 2>&1"
+ssh VPS "wget $@    >/dev/null 2>&1"
+scp VPS:/home/download/* .
+ssh VPS  "rm -rf * >/dev/null 2>&1"
+
